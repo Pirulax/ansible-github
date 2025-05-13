@@ -55,9 +55,10 @@ options:
 
   asset_archive_format:
     description:
-      - If the asset is an archive, you can specify the archive format
-        (one of "zip", "tar", "gztar", "bztar", or "xztar").
-        If not provided, the module will use the filename extension to guess the format.
+      - "If the asset is an archive, you can specify the archive format for unpacking.
+        The format should be one of the formats supported by Python's `shutil.unpack_archive()`
+        function: `zip`, `tar`, `gztar`, `bztar`, or `xztar`.
+        If not provided, the module will use the filename extension to guess the format."
     required: false
     type: str
 

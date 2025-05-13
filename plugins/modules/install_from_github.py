@@ -53,6 +53,14 @@ options:
     required: true
     type: str
 
+  asset_archive_format:
+    description:
+      - If the asset is an archive, you can specify the archive format
+        (one of "zip", "tar", "gztar", "bztar", or "xztar").
+        If not provided, the module will use the filename extension to guess the format.
+    required: false
+    type: str
+
   asset_arch_mapping:
     description:
       - 'If the repo uses non-standard strings to specify CPU architecture, you can define a custom
@@ -270,7 +278,7 @@ def set_mode_owner_group(module: AnsibleModule, path: str, mode, owner, group):
             set_mode_owner_group(module, os.path.join(path, item), mode, owner, group)
 
 
-def download_asset(module: AnsibleModule, file_name: str, url: str, move_rules: List[dict]):
+def download_asset(module: AnsibleModule, *, file_name: str, url: str, move_rules: List[dict], archive_format: str):
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path = os.path.join(temp_dir, file_name)
         urllib.request.urlretrieve(url, file_path)
@@ -282,7 +290,7 @@ def download_asset(module: AnsibleModule, file_name: str, url: str, move_rules: 
 
         try:
             # try extracting if downloaded file is an archive
-            shutil.unpack_archive(file_path, extract_dir)
+            shutil.unpack_archive(file_path, extract_dir, format=(archive_format or None))
         except shutil.ReadError:
             shutil.move(file_path, extract_dir)
 
@@ -400,6 +408,7 @@ def main():
             "tag": {"required": False, "type": "str", "default": "latest"},
             # 3. select asset
             "asset_regex": {"required": True, "type": "str"},
+            "asset_archive_format": {"required": False, "type": "str"},
             "asset_arch_mapping": {"required": False, "type": "dict", "default": {}},
             # 4. (optional) check installed version (to see if download is required)
             "version_command": {"required": False, "type": "str"},
@@ -419,6 +428,7 @@ def main():
     repo: str = module.params["repo"]
     tag: str = module.params["tag"]
     asset_regex: re.Pattern = re.compile(module.params["asset_regex"])
+    asset_archive_format: str = module.params["asset_archive_format"]
     asset_arch_mapping: dict = module.params["asset_arch_mapping"]
     version_command: str = module.params["version_command"]
     version_regex = module.params["version_regex"] or r"\d+\.\d+(?:\.\d+)?"
@@ -471,7 +481,11 @@ def main():
         return
 
     changed = download_asset(
-        module, asset["name"], asset["browser_download_url"], move_rules
+        module,
+        file_name=asset["name"],
+        url=asset["browser_download_url"],
+        move_rules=move_rules,
+        archive_format=asset_archive_format,
     )
 
     if version_file:
